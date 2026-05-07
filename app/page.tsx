@@ -1,136 +1,190 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
+import AuthButton from './components/AuthButton'
 
-// 🔐 подключение к Supabase
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-)
+export const dynamic = 'force-dynamic'
 
-// 🧠 тип данных
 type Card = {
   id: string
   name: string
   title: string
-  company: string
-  phone?: string | null
-  email?: string | null
-  website?: string | null
-  categories: {
-    name: string
-    color: string
-  }[] | null
+  business: string
+  email: string
+  phone: string
+  website: string
 }
 
-export default function HomePage() {
+const EMPTY_FORM = {
+  name: '',
+  title: '',
+  business: '',
+  email: '',
+  phone: '',
+  website: '',
+}
+
+export default function Page() {
   const [cards, setCards] = useState<Card[]>([])
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
 
-  // 📥 загрузка данных
-  const fetchCards = async () => {
-    const { data, error } = await supabase
-      .from('cards')
-      .select(`
-        id,
-        name,
-        title,
-        company,
-        phone,
-        email,
-        website,
-        categories ( name, color )
-      `)
-      .order('name', { ascending: true })
+  const [showForm, setShowForm] = useState(false)
 
-    if (!error && data) {
-      setCards(data)
+  const [formData, setFormData] = useState(EMPTY_FORM)
+
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      setUser(user)
+    }
+
+    const fetchCards = async () => {
+      const { data } = await supabase.from('cards').select('*')
+
+      if (data) {
+        setCards(data)
+      }
+
+      setLoading(false)
+    }
+
+    getUser()
+    fetchCards()
+  }, [])
+
+  const handleAddCard = async () => {
+    const { error } = await supabase.from('cards').insert([formData])
+
+    if (!error) {
+      const { data } = await supabase.from('cards').select('*')
+
+      if (data) {
+        setCards(data)
+      }
+
+      setFormData(EMPTY_FORM)
+      setShowForm(false)
     }
   }
 
-  // 🔄 загрузка + realtime
-  useEffect(() => {
-    fetchCards()
-
-    const channel = supabase
-      .channel('cards-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'cards' },
-        () => {
-          fetchCards()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+  if (loading) {
+    return <div className="p-10">Loading...</div>
+  }
 
   return (
-  <main className="p-8">
-    <h1 className="text-3xl font-bold mb-6 text-center">
-      Business Directory
-    </h1>
+    <main className="min-h-screen bg-gray-100">
+      <nav className="flex items-center justify-between bg-white px-6 py-4 shadow">
+        <h1 className="text-xl font-bold">Business Directory</h1>
 
-    <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-      {cards.map((card) => {
-        const avatar = `https://api.dicebear.com/7.x/personas/svg?seed=${card.name}`
+        <AuthButton />
+      </nav>
 
-        return (
-          <div
-            key={card.id}
-            className="bg-white rounded-2xl shadow-md p-5 transition transform hover:-translate-y-2 hover:shadow-xl"
-          >
-            {/* Avatar */}
-            <img
-              src={avatar}
-              alt="avatar"
-              className="w-16 h-16 rounded-full mb-4"
-            />
+      <div className="p-6">
+        {user && (
+          <div className="mb-6">
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="rounded bg-black px-4 py-2 text-white"
+            >
+              Add Business Card
+            </button>
+          </div>
+        )}
 
-            {/* Name */}
-            <h2 className="text-lg font-bold">{card.name}</h2>
+        {showForm && (
+          <div className="mb-8 rounded bg-white p-6 shadow">
+            <div className="grid gap-4">
+              <input
+                placeholder="Name"
+                className="border p-2"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+              />
 
-            {/* Title */}
-            <p className="text-sm text-gray-500">{card.title}</p>
+              <input
+                placeholder="Title"
+                className="border p-2"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+              />
 
-            {/* Company */}
-            <p className="text-sm">{card.company}</p>
+              <input
+                placeholder="Business"
+                className="border p-2"
+                value={formData.business}
+                onChange={(e) =>
+                  setFormData({ ...formData, business: e.target.value })
+                }
+              />
 
-            {/* Phone */}
-            {card.phone && (
-              <p className="text-sm text-gray-500">{card.phone}</p>
-            )}
+              <input
+                placeholder="Email"
+                className="border p-2"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+              />
 
-            {/* Email */}
-            {card.email && (
-              <p className="text-sm text-gray-500">{card.email}</p>
-            )}
+              <input
+                placeholder="Phone"
+                className="border p-2"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+              />
 
-            {/* Website */}
-            {card.website && (
+              <input
+                placeholder="Website"
+                className="border p-2"
+                value={formData.website}
+                onChange={(e) =>
+                  setFormData({ ...formData, website: e.target.value })
+                }
+              />
+
+              <button
+                onClick={handleAddCard}
+                className="rounded bg-green-600 px-4 py-2 text-white"
+              >
+                Save Card
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-4">
+          {cards.map((card) => (
+            <div key={card.id} className="rounded bg-white p-6 shadow">
+              <h2 className="text-xl font-bold">{card.name}</h2>
+
+              <p>{card.title}</p>
+
+              <p>{card.business}</p>
+
+              <p>{card.email}</p>
+
+              <p>{card.phone}</p>
+
               <a
-                href={`https://${card.website}`}
-                target="_blank"
-                className="text-sm text-blue-500 underline"
+                href={card.website}
+                className="text-blue-600 underline"
               >
                 {card.website}
               </a>
-            )}
-
-            {/* Category */}
-            {card.categories?.[0] && (
-              <span
-                className={`inline-block mt-3 px-3 py-1 text-white text-xs rounded-full ${card.categories[0].color}`}
-              >
-                {card.categories[0].name}
-              </span>
-            )}
-          </div>
-        )
-      })}
+            </div>
+          ))}
+        </div>
       </div>
     </main>
   )
