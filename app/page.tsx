@@ -1,107 +1,133 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import AuthButton from './components/AuthButton'
-
-export const dynamic = 'force-dynamic'
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import AuthButton from "./components/AuthButton";
 
 type Card = {
-  id: string
-  name: string
-  title: string
-  business: string
-  email: string
-  phone: string
-  website: string
-}
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  categories:
+    | {
+        name: string;
+        color: string;
+      }[]
+    | null;
+};
 
 const EMPTY_FORM = {
-  name: '',
-  title: '',
-  business: '',
-  email: '',
-  phone: '',
-  website: '',
-}
+  name: "",
+  title: "",
+  company: "",
+  phone: "",
+  email: "",
+  website: "",
+};
 
-export default function Page() {
-  const [cards, setCards] = useState<Card[]>([])
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
+export default function HomePage() {
+  const [cards, setCards] = useState<Card[]>([]);
+  const [user, setUser] = useState<any>(null);
 
-  const [showForm, setShowForm] = useState(false)
+  const [showForm, setShowForm] = useState(false);
 
-  const [formData, setFormData] = useState(EMPTY_FORM)
+  const [formData, setFormData] = useState(EMPTY_FORM);
+
+  const fetchCards = async () => {
+    const { data, error } = await supabase
+      .from("cards")
+      .select(
+        `
+        id,
+        name,
+        title,
+        company,
+        phone,
+        email,
+        website,
+        categories ( name, color )
+      `,
+      )
+      .order("name", { ascending: true });
+
+    if (!error && data) {
+      setCards(data);
+    }
+  };
 
   useEffect(() => {
+    fetchCards();
+
     const getUser = async () => {
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await supabase.auth.getUser();
 
-      setUser(user)
-    }
+      setUser(user);
+    };
 
-    const fetchCards = async () => {
-      const { data } = await supabase.from('cards').select('*')
+    getUser();
 
-      if (data) {
-        setCards(data)
-      }
+    const channel = supabase
+      .channel("cards-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "cards" },
+        () => {
+          fetchCards();
+        },
+      )
+      .subscribe();
 
-      setLoading(false)
-    }
-
-    getUser()
-    fetchCards()
-  }, [])
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleAddCard = async () => {
-    const { error } = await supabase.from('cards').insert([formData])
+    const { error } = await supabase.from("cards").insert([formData]);
 
     if (!error) {
-      const { data } = await supabase.from('cards').select('*')
+      fetchCards();
 
-      if (data) {
-        setCards(data)
-      }
-
-      setFormData(EMPTY_FORM)
-      setShowForm(false)
+      setFormData(EMPTY_FORM);
+      setShowForm(false);
     }
-  }
-
-  if (loading) {
-    return <div className="p-10">Loading...</div>
-  }
+  };
 
   return (
     <main className="min-h-screen bg-gray-100">
+      {/* NAVBAR */}
       <nav className="flex items-center justify-between bg-white px-6 py-4 shadow">
-        <h1 className="text-xl font-bold">Business Directory</h1>
+        <h1 className="text-3xl font-bold">Business Directory</h1>
 
         <AuthButton />
       </nav>
 
-      <div className="p-6">
+      <div className="p-8">
+        {/* ADD BUTTON */}
         {user && (
-          <div className="mb-6">
+          <div className="mb-8">
             <button
               onClick={() => setShowForm(!showForm)}
-              className="rounded bg-black px-4 py-2 text-white"
+              className="rounded-lg bg-black px-5 py-3 text-white hover:bg-gray-800"
             >
               Add Business Card
             </button>
           </div>
         )}
 
+        {/* FORM */}
         {showForm && (
-          <div className="mb-8 rounded bg-white p-6 shadow">
-            <div className="grid gap-4">
+          <div className="mb-10 rounded-2xl bg-white p-6 shadow-lg">
+            <div className="grid gap-4 md:grid-cols-2">
               <input
                 placeholder="Name"
-                className="border p-2"
+                className="rounded border p-3"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
@@ -110,7 +136,7 @@ export default function Page() {
 
               <input
                 placeholder="Title"
-                className="border p-2"
+                className="rounded border p-3"
                 value={formData.title}
                 onChange={(e) =>
                   setFormData({ ...formData, title: e.target.value })
@@ -118,26 +144,17 @@ export default function Page() {
               />
 
               <input
-                placeholder="Business"
-                className="border p-2"
-                value={formData.business}
+                placeholder="Company"
+                className="rounded border p-3"
+                value={formData.company}
                 onChange={(e) =>
-                  setFormData({ ...formData, business: e.target.value })
-                }
-              />
-
-              <input
-                placeholder="Email"
-                className="border p-2"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
+                  setFormData({ ...formData, company: e.target.value })
                 }
               />
 
               <input
                 placeholder="Phone"
-                className="border p-2"
+                className="rounded border p-3"
                 value={formData.phone}
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
@@ -145,47 +162,93 @@ export default function Page() {
               />
 
               <input
+                placeholder="Email"
+                className="rounded border p-3"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+              />
+
+              <input
                 placeholder="Website"
-                className="border p-2"
+                className="rounded border p-3"
                 value={formData.website}
                 onChange={(e) =>
                   setFormData({ ...formData, website: e.target.value })
                 }
               />
-
-              <button
-                onClick={handleAddCard}
-                className="rounded bg-green-600 px-4 py-2 text-white"
-              >
-                Save Card
-              </button>
             </div>
+
+            <button
+              onClick={handleAddCard}
+              className="mt-5 rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700"
+            >
+              Save Card
+            </button>
           </div>
         )}
 
-        <div className="grid gap-4">
-          {cards.map((card) => (
-            <div key={card.id} className="rounded bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">{card.name}</h2>
+        {/* CARDS */}
+        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
+          {cards.map((card) => {
+            const avatar = `https://api.dicebear.com/7.x/personas/svg?seed=${card.name}`;
 
-              <p>{card.title}</p>
-
-              <p>{card.business}</p>
-
-              <p>{card.email}</p>
-
-              <p>{card.phone}</p>
-
-              <a
-                href={card.website}
-                className="text-blue-600 underline"
+            return (
+              <div
+                key={card.id}
+                className="bg-white rounded-2xl shadow-md p-5 transition transform hover:-translate-y-2 hover:shadow-xl"
               >
-                {card.website}
-              </a>
-            </div>
-          ))}
+                {/* Avatar */}
+                <img
+                  src={avatar}
+                  alt="avatar"
+                  className="w-16 h-16 rounded-full mb-4"
+                />
+
+                {/* Name */}
+                <h2 className="text-lg font-bold">{card.name}</h2>
+
+                {/* Title */}
+                <p className="text-sm text-gray-500">{card.title}</p>
+
+                {/* Company */}
+                <p className="text-sm">{card.company}</p>
+
+                {/* Phone */}
+                {card.phone && (
+                  <p className="text-sm text-gray-500">{card.phone}</p>
+                )}
+
+                {/* Email */}
+                {card.email && (
+                  <p className="text-sm text-gray-500">{card.email}</p>
+                )}
+
+                {/* Website */}
+                {card.website && (
+                  <a
+                    href={`https://${card.website}`}
+                    target="_blank"
+                    className="text-sm text-blue-500 underline"
+                  >
+                    {card.website}
+                  </a>
+                )}
+
+                {/* Category */}
+                {card.categories?.[0] && (
+                  <span
+                    className={`inline-block mt-3 px-3 py-1 text-white text-xs rounded-full ${card.categories[0].color}`}
+                  >
+                    {card.categories[0].name}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </main>
-  )
+  );
 }
