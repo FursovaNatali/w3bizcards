@@ -36,6 +36,8 @@ export default function HomePage() {
   const [showForm, setShowForm] = useState(false);
 
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCards = async () => {
     const { data, error } = await supabase
@@ -57,6 +59,25 @@ export default function HomePage() {
     if (!error && data) {
       setCards(data);
     }
+  };
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+
+    const { error } = await supabase
+      .from("cards")
+      .delete()
+      .eq("id", deleteTarget.id);
+
+    if (error) {
+      console.log(error);
+    } else {
+      setCards(cards.filter((c) => c.id !== deleteTarget.id));
+    }
+
+    setDeleteTarget(null);
+    setDeleting(false);
   };
 
   useEffect(() => {
@@ -105,7 +126,16 @@ export default function HomePage() {
       <nav className="flex items-center justify-between bg-white px-6 py-4 shadow">
         <h1 className="text-3xl font-bold">Business Directory</h1>
 
-        <AuthButton />
+        <div className="flex gap-3 items-center">
+          <a
+            href="/submit"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            Submit a Card
+          </a>
+
+          <AuthButton />
+        </div>
       </nav>
 
       <div className="p-8">
@@ -205,6 +235,14 @@ export default function HomePage() {
                   alt="avatar"
                   className="w-16 h-16 rounded-full mb-4"
                 />
+                {user && (
+                  <button
+                    onClick={() => setDeleteTarget(card)}
+                    className="mt-2 text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-100"
+                  >
+                    Delete
+                  </button>
+                )}
 
                 {/* Name */}
                 <h2 className="text-lg font-bold">{card.name}</h2>
@@ -249,6 +287,35 @@ export default function HomePage() {
           })}
         </div>
       </div>
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">
+              Delete Business Card
+            </h3>
+            <p className="text-slate-500 text-sm mb-6">
+              Are you sure you want to delete{" "}
+              <strong>{deleteTarget.name}</strong>'s card? This action cannot be
+              undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-5 py-2 rounded-full text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-5 py-2 rounded-full text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
