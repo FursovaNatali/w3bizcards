@@ -231,9 +231,9 @@ export default function HomePage() {
               >
                 {/* Avatar */}
                 <img
-                  src={avatar}
-                  alt="avatar"
-                  className="w-16 h-16 rounded-full mb-4"
+                  src={card.photoUrl || avatar}
+                  alt={card.name}
+                  className="w-16 h-16 rounded-full mb-4 object-cover"
                 />
                 {user && (
                   <button
