@@ -12,6 +12,7 @@ type Card = {
   phone?: string | null;
   email?: string | null;
   website?: string | null;
+  profile_photo_url?: string;
   categories:
     | {
         name: string;
