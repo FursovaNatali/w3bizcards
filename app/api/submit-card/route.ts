@@ -70,10 +70,18 @@ export async function POST(request: Request) {
       const random = Math.random().toString(36).slice(2, 8);
       const ext = photo.type === "image/png" ? "png" : "jpg";
       const path = `${card.id}/${timestamp}_${random}.${ext}`;
-      const arrayBuffer = await photo.arrayBuffer();
+      const fileBuffer = Buffer.from(await photo.arrayBuffer());
+
       const { error: uploadError } = await supabase.storage
         .from("profile-photos")
-        .upload(path, arrayBuffer, { contentType: photo.type, upsert: false });
+        .upload(path, fileBuffer, {
+          contentType: photo.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.log("UPLOAD ERROR:", uploadError);
+      }
 
       if (!uploadError) {
         const { data: urlData } = supabase.storage
@@ -87,10 +95,7 @@ export async function POST(request: Request) {
           .update({
             profile_photo_url: photoUrl,
           })
-          .match({
-            id: card.id,
-            email: card.email,
-          });
+          .eq("id", card.id);
       }
     }
 
