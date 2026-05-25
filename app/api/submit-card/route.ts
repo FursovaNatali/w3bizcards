@@ -79,11 +79,19 @@ export async function POST(request: Request) {
         const { data: urlData } = supabase.storage
           .from("profile-photos")
           .getPublicUrl(path);
+
         photoUrl = urlData.publicUrl;
-        await supabase
+
+        const { data: updatedData, error } = await supabase
           .from("cards")
-          .update({ profile_photo_url: photoUrl })
-          .eq("id", card.id);
+          .update({
+            profile_photo_url: photoUrl,
+          })
+          .match({
+            id: card.id,
+            email: card.email,
+          })
+          .select();
       }
     }
 

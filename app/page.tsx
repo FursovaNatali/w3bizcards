@@ -52,6 +52,7 @@ export default function HomePage() {
         phone,
         email,
         website,
+        profile_photo_url,
         categories ( name, color )
       `,
       )
