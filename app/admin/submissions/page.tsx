@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export default function SubmissionsPage() {
   const [cards, setCards] = useState<any[]>([]);
@@ -10,12 +11,14 @@ export default function SubmissionsPage() {
     await supabase.from("cards").update({ status: "approved" }).eq("id", id);
 
     setCards(cards.filter((c) => c.id !== id));
+    toast.success("Card approved!");
   };
 
   const handleReject = async (id: string) => {
     await supabase.from("cards").update({ status: "rejected" }).eq("id", id);
 
     setCards(cards.filter((c) => c.id !== id));
+    toast.success("Card rejected!");
   };
 
   useEffect(() => {
