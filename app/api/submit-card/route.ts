@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
         photoUrl = urlData.publicUrl;
 
-        const { data: updatedData, error } = await supabase
+        const { error } = await supabase
           .from("cards")
           .update({
             profile_photo_url: photoUrl,
@@ -90,8 +90,7 @@ export async function POST(request: Request) {
           .match({
             id: card.id,
             email: card.email,
-          })
-          .select();
+          });
       }
     }
 
